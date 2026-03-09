@@ -1,12 +1,12 @@
 import { generateText } from "ai";
-import { openai } from "@ai-sdk/openai";
+import { gateway } from "@ai-sdk/gateway";
 
 export async function generateWithAI(
   systemPrompt: string,
   userContent: string
 ): Promise<string> {
   const { text } = await generateText({
-    model: openai("gpt-4o"),
+    model: gateway("openai/gpt-4o"),
     system: systemPrompt,
     prompt: userContent,
     temperature: 0.7,
