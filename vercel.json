@@ -1,0 +1,18 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "functions": {
+    "src/app/api/generate-protocol/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/generate-report/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/regenerate-section/route.ts": {
+      "maxDuration": 30
+    },
+    "src/app/api/export-document/route.ts": {
+      "maxDuration": 30
+    }
+  }
+}
