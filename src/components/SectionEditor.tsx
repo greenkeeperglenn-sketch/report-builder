@@ -11,6 +11,76 @@ interface SectionEditorProps {
   isRegenerating?: boolean;
 }
 
+/** Check if content contains a markdown table */
+function hasMarkdownTable(content: string): boolean {
+  const lines = content.split("\n");
+  for (let i = 0; i < lines.length - 1; i++) {
+    if (lines[i].includes("|") && /^[\s|:-]+$/.test(lines[i + 1])) return true;
+  }
+  return false;
+}
+
+/** Render content with markdown tables converted to HTML tables */
+function renderContentWithTables(content: string) {
+  const lines = content.split("\n");
+  const elements: React.ReactNode[] = [];
+  let i = 0;
+  let key = 0;
+
+  while (i < lines.length) {
+    if (
+      lines[i].includes("|") &&
+      i + 1 < lines.length &&
+      /^[\s|:-]+$/.test(lines[i + 1])
+    ) {
+      const parseLine = (l: string) =>
+        l.replace(/^\|/, "").replace(/\|$/, "").split("|").map((c) => c.trim());
+      const headers = parseLine(lines[i]);
+      const tableRows: string[][] = [];
+      let j = i + 2;
+      while (j < lines.length && lines[j].includes("|") && lines[j].trim() !== "") {
+        tableRows.push(parseLine(lines[j]));
+        j++;
+      }
+      elements.push(
+        <div key={key++} className="my-2 overflow-x-auto rounded border border-slate-200">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="bg-blue-50">
+                {headers.map((h, hi) => (
+                  <th key={hi} className="border-b border-slate-200 px-3 py-1.5 text-left font-semibold text-slate-700">
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {tableRows.map((row, ri) => (
+                <tr key={ri} className={ri % 2 === 1 ? "bg-slate-50" : ""}>
+                  {row.map((cell, ci) => (
+                    <td key={ci} className="border-b border-slate-100 px-3 py-1.5 text-slate-600">
+                      {cell}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+      i = j;
+      continue;
+    }
+    if (lines[i].trim()) {
+      elements.push(<p key={key++} className="text-sm leading-relaxed text-slate-700">{lines[i]}</p>);
+    } else {
+      elements.push(<div key={key++} className="h-2" />);
+    }
+    i++;
+  }
+  return elements;
+}
+
 export default function SectionEditor({
   section,
   onUpdate,
@@ -20,6 +90,8 @@ export default function SectionEditor({
 }: SectionEditorProps) {
   const [refinePrompt, setRefinePrompt] = useState("");
   const [showRefine, setShowRefine] = useState(false);
+  const contentHasTable = hasMarkdownTable(section.content);
+  const [editing, setEditing] = useState(false);
 
   const handleRefine = () => {
     if (!refinePrompt.trim()) return;
@@ -33,6 +105,15 @@ export default function SectionEditor({
       <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
         <h3 className="font-semibold text-slate-800">{section.title}</h3>
         <div className="flex gap-2">
+          {contentHasTable && (
+            <button
+              type="button"
+              onClick={() => setEditing(!editing)}
+              className="rounded px-3 py-1 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-100"
+            >
+              {editing ? "Preview" : "Edit"}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setShowRefine(!showRefine)}
@@ -79,12 +160,16 @@ export default function SectionEditor({
         </div>
       )}
 
-      <textarea
-        value={section.content}
-        onChange={(e) => onUpdate(section.id, e.target.value)}
-        className="w-full resize-y rounded-b-lg border-0 p-4 text-sm leading-relaxed text-slate-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-500/20"
-        rows={8}
-      />
+      {contentHasTable && !editing ? (
+        <div className="p-4">{renderContentWithTables(section.content)}</div>
+      ) : (
+        <textarea
+          value={section.content}
+          onChange={(e) => onUpdate(section.id, e.target.value)}
+          className="w-full resize-y rounded-b-lg border-0 p-4 text-sm leading-relaxed text-slate-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-500/20"
+          rows={8}
+        />
+      )}
     </div>
   );
 }

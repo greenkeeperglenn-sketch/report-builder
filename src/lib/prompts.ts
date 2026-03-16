@@ -21,7 +21,7 @@ Rules:
 - Expand rough notes into professional scientific writing
 - Use formal, precise language suitable for agronomy research
 - Include specific details where provided, and note where details need to be confirmed
-- Format treatment tables clearly
+- IMPORTANT: The Treatments section content MUST be formatted as a markdown table using pipe syntax (| Col1 | Col2 | with |---|---| separator after header). Include columns such as Treatment Number, Product/Treatment Name, Rate, Timing, and any other relevant details. Add any introductory text before the table.
 - Be thorough but concise
 - Do NOT invent data or statistics
 - If information for a section is not provided, write a reasonable placeholder noting it needs to be completed
@@ -56,6 +56,8 @@ Rules:
 - Simply interpret and summarise the results that are presented
 - Reference tables by number (e.g., "Table 1", "Table 2")
 - Reference figures/photographs by number (e.g., "Figure 1")
+- IMPORTANT: The Treatments section content MUST be formatted as a markdown table using pipe syntax (| Col1 | Col2 | with |---|---| separator after header). Include columns such as Treatment Number, Product/Treatment Name, Rate, Timing, and any other relevant details. Add any introductory text before the table.
+- IMPORTANT: The Results section should also present key numerical findings as markdown tables using pipe syntax where appropriate, with supporting prose text around them.
 - Write in formal scientific style suitable for publication
 - The Discussion section should interpret findings in context of the trial objectives
 - The Quality Statement should note the AI-assisted nature of the report

@@ -19,14 +19,80 @@ function emptyParagraph(): string {
   return "<w:p/>";
 }
 
+/** Parse a markdown pipe-table block into headers + rows */
+function parseMarkdownTable(lines: string[]): { headers: string[]; rows: string[][] } | null {
+  if (lines.length < 2) return null;
+  const parseLine = (l: string) =>
+    l.replace(/^\|/, "").replace(/\|$/, "").split("|").map((c) => c.trim());
+
+  const headers = parseLine(lines[0]);
+  // line[1] should be the separator (|---|---|...)
+  if (!/^[\s|:-]+$/.test(lines[1])) return null;
+
+  const rows: string[][] = [];
+  for (let i = 2; i < lines.length; i++) {
+    const cells = parseLine(lines[i]);
+    if (cells.length > 0) rows.push(cells);
+  }
+  return headers.length > 0 ? { headers, rows } : null;
+}
+
+/** Build a Word table from a parsed markdown table */
+function buildInlineWordTable(headers: string[], rows: string[][]): string {
+  const tblPr = `<w:tblPr>
+    <w:tblStyle w:val="TableGrid"/>
+    <w:tblW w:w="0" w:type="auto"/>
+    <w:tblBorders>
+      <w:top w:val="single" w:sz="4" w:space="0" w:color="999999"/>
+      <w:left w:val="single" w:sz="4" w:space="0" w:color="999999"/>
+      <w:bottom w:val="single" w:sz="4" w:space="0" w:color="999999"/>
+      <w:right w:val="single" w:sz="4" w:space="0" w:color="999999"/>
+      <w:insideH w:val="single" w:sz="4" w:space="0" w:color="999999"/>
+      <w:insideV w:val="single" w:sz="4" w:space="0" w:color="999999"/>
+    </w:tblBorders>
+    <w:tblLook w:val="04A0" w:firstRow="1" w:lastRow="0" w:firstColumn="1" w:lastColumn="0" w:noHBand="0" w:noVBand="1"/>
+  </w:tblPr>`;
+
+  const headerRow = buildTableRow(headers, true, "D9E2F3");
+  const dataRows = rows
+    .map((row, i) => buildTableRow(row, false, i % 2 === 1 ? "F2F2F2" : undefined))
+    .join("");
+
+  return `<w:tbl>${tblPr}${headerRow}${dataRows}</w:tbl>`;
+}
+
 function buildSectionXml(sections: Section[]): string {
   const parts: string[] = [];
   for (const section of sections) {
     parts.push(makeParagraph(section.title, true));
     parts.push(emptyParagraph());
+
     const lines = section.content.split("\n");
-    for (const line of lines) {
-      parts.push(makeParagraph(line));
+    let i = 0;
+    while (i < lines.length) {
+      // Detect start of a markdown table (line with pipes and next line is separator)
+      if (
+        lines[i].includes("|") &&
+        i + 1 < lines.length &&
+        /^[\s|:-]+$/.test(lines[i + 1])
+      ) {
+        // Collect all contiguous table lines
+        const tableLines: string[] = [lines[i], lines[i + 1]];
+        let j = i + 2;
+        while (j < lines.length && lines[j].includes("|") && lines[j].trim() !== "") {
+          tableLines.push(lines[j]);
+          j++;
+        }
+        const parsed = parseMarkdownTable(tableLines);
+        if (parsed) {
+          parts.push(buildInlineWordTable(parsed.headers, parsed.rows));
+          parts.push(emptyParagraph());
+          i = j;
+          continue;
+        }
+      }
+      parts.push(makeParagraph(lines[i]));
+      i++;
     }
     parts.push(emptyParagraph());
   }
