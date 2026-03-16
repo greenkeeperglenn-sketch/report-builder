@@ -6,7 +6,7 @@ import SectionEditor from "./SectionEditor";
 interface SectionListProps {
   sections: Section[];
   onUpdate: (id: string, content: string) => void;
-  onRegenerate: (id: string) => void;
+  onRegenerate: (id: string, refinePrompt?: string) => void;
   onDelete: (id: string) => void;
   regeneratingId?: string | null;
 }

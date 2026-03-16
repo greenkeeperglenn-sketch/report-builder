@@ -34,3 +34,11 @@ export interface ImageUpload {
 }
 
 export type DocumentType = "protocol" | "report";
+
+export interface PromptVersion {
+  id: string;
+  name: string;
+  date: string;
+  protocolPrompt: string;
+  reportPrompt: string;
+}

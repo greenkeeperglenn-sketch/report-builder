@@ -33,18 +33,59 @@ function buildSectionXml(sections: Section[]): string {
   return parts.join("");
 }
 
-function buildTablesXml(tables: TableData[]): string {
+function buildTableCell(text: string, bold = false, shading?: string): string {
+  const tcPr = shading
+    ? `<w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="${shading}"/></w:tcPr>`
+    : "";
+  const rPr = bold ? "<w:rPr><w:b/><w:sz w:val=\"20\"/></w:rPr>" : "<w:rPr><w:sz w:val=\"20\"/></w:rPr>";
+  return `<w:tc>${tcPr}<w:p><w:r>${rPr}<w:t xml:space="preserve">${escapeXml(String(text))}</w:t></w:r></w:p></w:tc>`;
+}
+
+function buildTableRow(cells: string[], bold = false, shading?: string): string {
+  return `<w:tr>${cells.map((c) => buildTableCell(c, bold, shading)).join("")}</w:tr>`;
+}
+
+function buildWordTable(table: TableData, index: number): string {
   const parts: string[] = [];
-  for (let i = 0; i < tables.length; i++) {
-    const t = tables[i];
-    parts.push(makeParagraph(`Table ${i + 1}: ${t.name}`, true));
-    parts.push(makeParagraph(t.headers.join("\t")));
-    for (const row of t.rows) {
-      parts.push(makeParagraph(row.join("\t")));
-    }
-    parts.push(emptyParagraph());
-  }
+
+  // Table title
+  parts.push(makeParagraph(`Table ${index + 1}: ${table.name}`, true));
+
+  // Table XML with borders and auto-fit layout
+  const tblPr = `<w:tblPr>
+    <w:tblStyle w:val="TableGrid"/>
+    <w:tblW w:w="0" w:type="auto"/>
+    <w:tblBorders>
+      <w:top w:val="single" w:sz="4" w:space="0" w:color="999999"/>
+      <w:left w:val="single" w:sz="4" w:space="0" w:color="999999"/>
+      <w:bottom w:val="single" w:sz="4" w:space="0" w:color="999999"/>
+      <w:right w:val="single" w:sz="4" w:space="0" w:color="999999"/>
+      <w:insideH w:val="single" w:sz="4" w:space="0" w:color="999999"/>
+      <w:insideV w:val="single" w:sz="4" w:space="0" w:color="999999"/>
+    </w:tblBorders>
+    <w:tblLook w:val="04A0" w:firstRow="1" w:lastRow="0" w:firstColumn="1" w:lastColumn="0" w:noHBand="0" w:noVBand="1"/>
+  </w:tblPr>`;
+
+  // Header row with shading
+  const headerRow = buildTableRow(table.headers, true, "D9E2F3");
+
+  // Data rows with alternating shading
+  const dataRows = table.rows
+    .map((row, i) => {
+      const cells = row.map((cell) => String(cell));
+      const shade = i % 2 === 1 ? "F2F2F2" : undefined;
+      return buildTableRow(cells, false, shade);
+    })
+    .join("");
+
+  parts.push(`<w:tbl>${tblPr}${headerRow}${dataRows}</w:tbl>`);
+  parts.push(emptyParagraph());
+
   return parts.join("");
+}
+
+function buildTablesXml(tables: TableData[]): string {
+  return tables.map((t, i) => buildWordTable(t, i)).join("");
 }
 
 function buildCaptionsXml(

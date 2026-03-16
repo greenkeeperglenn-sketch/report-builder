@@ -11,6 +11,7 @@ import SectionOrderPanel from "@/components/SectionOrderPanel";
 import TablePreview from "@/components/TablePreview";
 import GraphBuilder from "@/components/GraphBuilder";
 import ImageUploader from "@/components/ImageUploader";
+import InlinePromptEditor from "@/components/InlinePromptEditor";
 import BottomBar from "@/components/BottomBar";
 
 export default function ReportPage() {
@@ -24,7 +25,15 @@ export default function ReportPage() {
   const [loading, setLoading] = useState(false);
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const { reportPrompt, loaded } = useLocalPrompts();
+  const {
+    reportPrompt,
+    saveReportPrompt,
+    loaded,
+    versions,
+    saveVersion,
+    restoreVersion,
+    deleteVersion,
+  } = useLocalPrompts();
 
   const handleGenerate = async () => {
     setLoading(true);
@@ -78,7 +87,7 @@ export default function ReportPage() {
     );
   };
 
-  const handleRegenerate = async (id: string) => {
+  const handleRegenerate = async (id: string, refinePrompt?: string) => {
     const section = sections.find((s) => s.id === id);
     if (!section) return;
     setRegeneratingId(id);
@@ -94,6 +103,7 @@ export default function ReportPage() {
           sectionTitle: section.title,
           currentContent: section.content,
           context,
+          refinePrompt,
         }),
       });
       const data = await res.json();
@@ -180,6 +190,16 @@ export default function ReportPage() {
             placeholder="Additional notes or comments about the trial..."
           />
           <ImageUploader images={images} onImagesChange={setImages} />
+          <InlinePromptEditor
+            label="Report"
+            prompt={reportPrompt}
+            onPromptChange={saveReportPrompt}
+            versions={versions}
+            onSaveVersion={saveVersion}
+            onRestoreVersion={restoreVersion}
+            onDeleteVersion={deleteVersion}
+            accentColor="blue"
+          />
         </div>
 
         {/* CENTER PANEL */}

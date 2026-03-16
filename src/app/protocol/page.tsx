@@ -8,6 +8,7 @@ import NotesInput from "@/components/NotesInput";
 import FileUploader from "@/components/FileUploader";
 import SectionList from "@/components/SectionList";
 import SectionOrderPanel from "@/components/SectionOrderPanel";
+import InlinePromptEditor from "@/components/InlinePromptEditor";
 import BottomBar from "@/components/BottomBar";
 
 export default function ProtocolPage() {
@@ -17,7 +18,15 @@ export default function ProtocolPage() {
   const [loading, setLoading] = useState(false);
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const { protocolPrompt, loaded } = useLocalPrompts();
+  const {
+    protocolPrompt,
+    saveProtocolPrompt,
+    loaded,
+    versions,
+    saveVersion,
+    restoreVersion,
+    deleteVersion,
+  } = useLocalPrompts();
 
   const handleGenerate = async () => {
     if (!notes.trim()) return;
@@ -45,7 +54,7 @@ export default function ProtocolPage() {
     );
   };
 
-  const handleRegenerate = async (id: string) => {
+  const handleRegenerate = async (id: string, refinePrompt?: string) => {
     const section = sections.find((s) => s.id === id);
     if (!section) return;
     setRegeneratingId(id);
@@ -61,6 +70,7 @@ export default function ProtocolPage() {
           sectionTitle: section.title,
           currentContent: section.content,
           context,
+          refinePrompt,
         }),
       });
       const data = await res.json();
@@ -134,6 +144,16 @@ export default function ProtocolPage() {
             multiple
             files={files}
             onFilesChange={setFiles}
+          />
+          <InlinePromptEditor
+            label="Protocol"
+            prompt={protocolPrompt}
+            onPromptChange={saveProtocolPrompt}
+            versions={versions}
+            onSaveVersion={saveVersion}
+            onRestoreVersion={restoreVersion}
+            onDeleteVersion={deleteVersion}
+            accentColor="emerald"
           />
         </div>
 
