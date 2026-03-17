@@ -3,24 +3,32 @@ import { generateWithAI } from "@/lib/ai";
 import { DEFAULT_PROTOCOL_PROMPT } from "@/lib/prompts";
 import { Section } from "@/lib/types";
 import { v4 as uuidv4 } from "uuid";
+import { extractTextFromFiles } from "@/lib/file-extractor";
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { notes, customPrompt } = body as {
-      notes: string;
-      customPrompt?: string;
-    };
+    const formData = await req.formData();
+    const notes = (formData.get("notes") as string) || "";
+    const customPrompt = formData.get("customPrompt") as string | null;
 
-    if (!notes?.trim()) {
+    // Extract text from additional files
+    const additionalFiles = formData.getAll("additionalFiles") as File[];
+    const filesText = await extractTextFromFiles(additionalFiles);
+
+    if (!notes.trim() && !filesText.trim()) {
       return NextResponse.json(
-        { error: "Notes are required" },
+        { error: "Notes or at least one file are required" },
         { status: 400 }
       );
     }
 
+    let userContent = notes;
+    if (filesText) {
+      userContent += `\n\nAdditional reference documents:\n${filesText}`;
+    }
+
     const prompt = customPrompt || DEFAULT_PROTOCOL_PROMPT;
-    const raw = await generateWithAI(prompt, notes);
+    const raw = await generateWithAI(prompt, userContent);
 
     const jsonMatch = raw.match(/\[[\s\S]*\]/);
     if (!jsonMatch) {

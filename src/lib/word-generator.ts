@@ -19,14 +19,16 @@ function emptyParagraph(): string {
   return "<w:p/>";
 }
 
-/** Parse a markdown pipe-table block into headers + rows */
+// ---------------------------------------------------------------------------
+// Markdown table parsing
+// ---------------------------------------------------------------------------
+
 function parseMarkdownTable(lines: string[]): { headers: string[]; rows: string[][] } | null {
   if (lines.length < 2) return null;
   const parseLine = (l: string) =>
     l.replace(/^\|/, "").replace(/\|$/, "").split("|").map((c) => c.trim());
 
   const headers = parseLine(lines[0]);
-  // line[1] should be the separator (|---|---|...)
   if (!/^[\s|:-]+$/.test(lines[1])) return null;
 
   const rows: string[][] = [];
@@ -37,29 +39,51 @@ function parseMarkdownTable(lines: string[]): { headers: string[]; rows: string[
   return headers.length > 0 ? { headers, rows } : null;
 }
 
-/** Build a Word table from a parsed markdown table */
-function buildInlineWordTable(headers: string[], rows: string[][]): string {
-  const tblPr = `<w:tblPr>
-    <w:tblStyle w:val="TableGrid"/>
-    <w:tblW w:w="0" w:type="auto"/>
-    <w:tblBorders>
-      <w:top w:val="single" w:sz="4" w:space="0" w:color="999999"/>
-      <w:left w:val="single" w:sz="4" w:space="0" w:color="999999"/>
-      <w:bottom w:val="single" w:sz="4" w:space="0" w:color="999999"/>
-      <w:right w:val="single" w:sz="4" w:space="0" w:color="999999"/>
-      <w:insideH w:val="single" w:sz="4" w:space="0" w:color="999999"/>
-      <w:insideV w:val="single" w:sz="4" w:space="0" w:color="999999"/>
-    </w:tblBorders>
-    <w:tblLook w:val="04A0" w:firstRow="1" w:lastRow="0" w:firstColumn="1" w:lastColumn="0" w:noHBand="0" w:noVBand="1"/>
-  </w:tblPr>`;
+// ---------------------------------------------------------------------------
+// Word XML builders
+// ---------------------------------------------------------------------------
 
+function buildTableCell(text: string, bold = false, shading?: string): string {
+  const tcPr = shading
+    ? `<w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="${shading}"/></w:tcPr>`
+    : "";
+  const rPr = bold
+    ? '<w:rPr><w:b/><w:sz w:val="20"/></w:rPr>'
+    : '<w:rPr><w:sz w:val="20"/></w:rPr>';
+  return `<w:tc>${tcPr}<w:p><w:r>${rPr}<w:t xml:space="preserve">${escapeXml(String(text))}</w:t></w:r></w:p></w:tc>`;
+}
+
+function buildTableRow(cells: string[], bold = false, shading?: string): string {
+  return `<w:tr>${cells.map((c) => buildTableCell(c, bold, shading)).join("")}</w:tr>`;
+}
+
+const TABLE_BORDERS = `<w:tblBorders>
+  <w:top w:val="single" w:sz="4" w:space="0" w:color="999999"/>
+  <w:left w:val="single" w:sz="4" w:space="0" w:color="999999"/>
+  <w:bottom w:val="single" w:sz="4" w:space="0" w:color="999999"/>
+  <w:right w:val="single" w:sz="4" w:space="0" w:color="999999"/>
+  <w:insideH w:val="single" w:sz="4" w:space="0" w:color="999999"/>
+  <w:insideV w:val="single" w:sz="4" w:space="0" w:color="999999"/>
+</w:tblBorders>`;
+
+const TABLE_PR = `<w:tblPr>
+  <w:tblStyle w:val="TableGrid"/>
+  <w:tblW w:w="0" w:type="auto"/>
+  ${TABLE_BORDERS}
+  <w:tblLook w:val="04A0" w:firstRow="1" w:lastRow="0" w:firstColumn="1" w:lastColumn="0" w:noHBand="0" w:noVBand="1"/>
+</w:tblPr>`;
+
+function buildWordTable(headers: string[], rows: string[][]): string {
   const headerRow = buildTableRow(headers, true, "D9E2F3");
   const dataRows = rows
     .map((row, i) => buildTableRow(row, false, i % 2 === 1 ? "F2F2F2" : undefined))
     .join("");
-
-  return `<w:tbl>${tblPr}${headerRow}${dataRows}</w:tbl>`;
+  return `<w:tbl>${TABLE_PR}${headerRow}${dataRows}</w:tbl>`;
 }
+
+// ---------------------------------------------------------------------------
+// Section content builder (handles inline markdown tables)
+// ---------------------------------------------------------------------------
 
 function buildSectionXml(sections: Section[]): string {
   const parts: string[] = [];
@@ -70,13 +94,11 @@ function buildSectionXml(sections: Section[]): string {
     const lines = section.content.split("\n");
     let i = 0;
     while (i < lines.length) {
-      // Detect start of a markdown table (line with pipes and next line is separator)
       if (
         lines[i].includes("|") &&
         i + 1 < lines.length &&
         /^[\s|:-]+$/.test(lines[i + 1])
       ) {
-        // Collect all contiguous table lines
         const tableLines: string[] = [lines[i], lines[i + 1]];
         let j = i + 2;
         while (j < lines.length && lines[j].includes("|") && lines[j].trim() !== "") {
@@ -85,7 +107,7 @@ function buildSectionXml(sections: Section[]): string {
         }
         const parsed = parseMarkdownTable(tableLines);
         if (parsed) {
-          parts.push(buildInlineWordTable(parsed.headers, parsed.rows));
+          parts.push(buildWordTable(parsed.headers, parsed.rows));
           parts.push(emptyParagraph());
           i = j;
           continue;
@@ -99,65 +121,22 @@ function buildSectionXml(sections: Section[]): string {
   return parts.join("");
 }
 
-function buildTableCell(text: string, bold = false, shading?: string): string {
-  const tcPr = shading
-    ? `<w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="${shading}"/></w:tcPr>`
-    : "";
-  const rPr = bold ? "<w:rPr><w:b/><w:sz w:val=\"20\"/></w:rPr>" : "<w:rPr><w:sz w:val=\"20\"/></w:rPr>";
-  return `<w:tc>${tcPr}<w:p><w:r>${rPr}<w:t xml:space="preserve">${escapeXml(String(text))}</w:t></w:r></w:p></w:tc>`;
-}
+// ---------------------------------------------------------------------------
+// Data tables builder (excel tables)
+// ---------------------------------------------------------------------------
 
-function buildTableRow(cells: string[], bold = false, shading?: string): string {
-  return `<w:tr>${cells.map((c) => buildTableCell(c, bold, shading)).join("")}</w:tr>`;
-}
-
-function buildWordTable(table: TableData, index: number): string {
+function buildTablesXml(tables: TableData[]): string {
   const parts: string[] = [];
-
-  // Table title
-  parts.push(makeParagraph(`Table ${index + 1}: ${table.name}`, true));
-
-  // Table XML with borders and auto-fit layout
-  const tblPr = `<w:tblPr>
-    <w:tblStyle w:val="TableGrid"/>
-    <w:tblW w:w="0" w:type="auto"/>
-    <w:tblBorders>
-      <w:top w:val="single" w:sz="4" w:space="0" w:color="999999"/>
-      <w:left w:val="single" w:sz="4" w:space="0" w:color="999999"/>
-      <w:bottom w:val="single" w:sz="4" w:space="0" w:color="999999"/>
-      <w:right w:val="single" w:sz="4" w:space="0" w:color="999999"/>
-      <w:insideH w:val="single" w:sz="4" w:space="0" w:color="999999"/>
-      <w:insideV w:val="single" w:sz="4" w:space="0" w:color="999999"/>
-    </w:tblBorders>
-    <w:tblLook w:val="04A0" w:firstRow="1" w:lastRow="0" w:firstColumn="1" w:lastColumn="0" w:noHBand="0" w:noVBand="1"/>
-  </w:tblPr>`;
-
-  // Header row with shading
-  const headerRow = buildTableRow(table.headers, true, "D9E2F3");
-
-  // Data rows with alternating shading
-  const dataRows = table.rows
-    .map((row, i) => {
-      const cells = row.map((cell) => String(cell));
-      const shade = i % 2 === 1 ? "F2F2F2" : undefined;
-      return buildTableRow(cells, false, shade);
-    })
-    .join("");
-
-  parts.push(`<w:tbl>${tblPr}${headerRow}${dataRows}</w:tbl>`);
-  parts.push(emptyParagraph());
-
+  for (let i = 0; i < tables.length; i++) {
+    const t = tables[i];
+    parts.push(makeParagraph(`Table ${i + 1}: ${t.name}`, true));
+    parts.push(buildWordTable(t.headers, t.rows.map((r) => r.map(String))));
+    parts.push(emptyParagraph());
+  }
   return parts.join("");
 }
 
-function buildTablesXml(tables: TableData[]): string {
-  return tables.map((t, i) => buildWordTable(t, i)).join("");
-}
-
-function buildCaptionsXml(
-  images: ImageUpload[],
-  charts: ChartExport[]
-): string {
+function buildCaptionsXml(images: ImageUpload[], charts: ChartExport[]): string {
   const parts: string[] = [];
   for (const img of images) {
     if (img.caption) parts.push(makeParagraph(img.caption));
@@ -167,6 +146,42 @@ function buildCaptionsXml(
   }
   return parts.join("");
 }
+
+// ---------------------------------------------------------------------------
+// Placeholder replacement helper
+// ---------------------------------------------------------------------------
+
+/**
+ * Find the <w:p> element that contains {{TAG}} and replace the entire
+ * paragraph with the provided XML string.
+ */
+function replacePlaceholder(xml: string, tag: string, replacement: string): string {
+  // The placeholder is stored as a single <w:t>{{TAG}}</w:t> inside a <w:p>.
+  // We need to find the full <w:p>...</w:p> that wraps it and replace.
+  const needle = `{{${tag}}}`;
+
+  // Find the position of the needle in the XML
+  const needleIdx = xml.indexOf(needle);
+  if (needleIdx === -1) return xml;
+
+  // Walk backwards to find the opening <w:p> or <w:p ...>
+  let pStart = needleIdx;
+  while (pStart > 0) {
+    if (xml.startsWith("<w:p>", pStart) || xml.startsWith("<w:p ", pStart)) break;
+    pStart--;
+  }
+
+  // Walk forwards to find the closing </w:p>
+  let pEnd = xml.indexOf("</w:p>", needleIdx);
+  if (pEnd === -1) return xml;
+  pEnd += "</w:p>".length;
+
+  return xml.slice(0, pStart) + replacement + xml.slice(pEnd);
+}
+
+// ---------------------------------------------------------------------------
+// Main document generator
+// ---------------------------------------------------------------------------
 
 export function generateDocument(
   templateBuffer: ArrayBuffer,
@@ -178,7 +193,7 @@ export function generateDocument(
 ): Buffer {
   const zip = new PizZip(templateBuffer);
 
-  // Fix .dotx → .docx content type so the output opens as a document
+  // Fix .dotx → .docx content type
   const contentTypesXml = zip.file("[Content_Types].xml")?.asText();
   if (contentTypesXml) {
     zip.file(
@@ -190,9 +205,8 @@ export function generateDocument(
     );
   }
 
-  // Build content XML to inject
-  const title =
-    documentType === "protocol" ? "Trial Protocol" : "Trial Report";
+  // Build the replacement XML for each placeholder
+  const title = documentType === "protocol" ? "Trial Protocol" : "Trial Report";
 
   let contentXml = "";
   contentXml += makeParagraph(title, true);
@@ -207,24 +221,22 @@ export function generateDocument(
   contentXml += emptyParagraph();
   contentXml += buildSectionXml(sections);
 
-  if (tables.length > 0) {
-    contentXml += buildTablesXml(tables);
-  }
-
   const captionsXml = buildCaptionsXml(images, charts);
   if (captionsXml) {
     contentXml += captionsXml;
   }
 
-  // Inject content before the final <w:sectPr> in the document body
-  const docXml = zip.file("word/document.xml")?.asText();
+  let tablesXml = "";
+  if (tables.length > 0) {
+    tablesXml = buildTablesXml(tables);
+  }
+
+  // Replace {{CONTENT}} and {{TABLES}} placeholders
+  let docXml = zip.file("word/document.xml")?.asText();
   if (docXml) {
-    const sectPrMatch = docXml.lastIndexOf("<w:sectPr");
-    if (sectPrMatch !== -1) {
-      const updatedXml =
-        docXml.slice(0, sectPrMatch) + contentXml + docXml.slice(sectPrMatch);
-      zip.file("word/document.xml", updatedXml);
-    }
+    docXml = replacePlaceholder(docXml, "CONTENT", contentXml);
+    docXml = replacePlaceholder(docXml, "TABLES", tablesXml);
+    zip.file("word/document.xml", docXml);
   }
 
   const buf = zip.generate({

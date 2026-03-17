@@ -17,6 +17,7 @@ import BottomBar from "@/components/BottomBar";
 export default function ReportPage() {
   const [protocolFiles, setProtocolFiles] = useState<File[]>([]);
   const [excelFiles, setExcelFiles] = useState<File[]>([]);
+  const [additionalFiles, setAdditionalFiles] = useState<File[]>([]);
   const [notes, setNotes] = useState("");
   const [images, setImages] = useState<ImageUpload[]>([]);
   const [sections, setSections] = useState<Section[]>([]);
@@ -45,6 +46,9 @@ export default function ReportPage() {
       formData.append("notes", notes);
       formData.append("imageCount", String(images.length));
       if (reportPrompt) formData.append("customPrompt", reportPrompt);
+      for (const file of additionalFiles) {
+        formData.append("additionalFiles", file);
+      }
 
       const res = await fetch("/api/generate-report", {
         method: "POST",
@@ -200,6 +204,13 @@ export default function ReportPage() {
             value={notes}
             onChange={setNotes}
             placeholder="Additional notes or comments about the trial..."
+          />
+          <FileUploader
+            label="Additional Files"
+            accept=".pdf,.doc,.docx,.txt,.xlsx,.xls,.csv"
+            multiple
+            files={additionalFiles}
+            onFilesChange={setAdditionalFiles}
           />
           <ImageUploader images={images} onImagesChange={setImages} />
           <InlinePromptEditor

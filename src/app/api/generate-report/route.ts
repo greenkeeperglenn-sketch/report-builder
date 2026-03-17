@@ -5,6 +5,7 @@ import { Section, TableData } from "@/lib/types";
 import { parseExcelBuffer } from "@/lib/excel-parser";
 import { v4 as uuidv4 } from "uuid";
 import mammoth from "mammoth";
+import { extractTextFromFiles } from "@/lib/file-extractor";
 
 export async function POST(req: NextRequest) {
   try {
@@ -30,6 +31,10 @@ export async function POST(req: NextRequest) {
       tables = parseExcelBuffer(buffer);
     }
 
+    // Extract text from additional files
+    const additionalFiles = formData.getAll("additionalFiles") as File[];
+    const filesText = await extractTextFromFiles(additionalFiles);
+
     const tablesText = tables
       .map(
         (t, i) =>
@@ -50,7 +55,10 @@ ${notes || "No additional notes."}
 
 Number of photographs: ${imageCount}
 
-Based on the above protocol, data, and notes, generate a complete scientific report.`;
+Additional reference documents:
+${filesText || "No additional documents provided."}
+
+Based on the above protocol, data, notes, and reference documents, generate a complete scientific report.`;
 
     const prompt = customPrompt || DEFAULT_REPORT_PROMPT;
     const raw = await generateWithAI(prompt, userContent);

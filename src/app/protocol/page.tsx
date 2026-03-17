@@ -13,7 +13,7 @@ import BottomBar from "@/components/BottomBar";
 
 export default function ProtocolPage() {
   const [notes, setNotes] = useState("");
-  const [files, setFiles] = useState<File[]>([]);
+  const [additionalFiles, setAdditionalFiles] = useState<File[]>([]);
   const [sections, setSections] = useState<Section[]>([]);
   const [loading, setLoading] = useState(false);
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
@@ -29,14 +29,20 @@ export default function ProtocolPage() {
   } = useLocalPrompts();
 
   const handleGenerate = async () => {
-    if (!notes.trim()) return;
+    if (!notes.trim() && additionalFiles.length === 0) return;
     setLoading(true);
     setError(null);
     try {
+      const formData = new FormData();
+      formData.append("notes", notes);
+      if (protocolPrompt) formData.append("customPrompt", protocolPrompt);
+      for (const file of additionalFiles) {
+        formData.append("additionalFiles", file);
+      }
+
       const res = await fetch("/api/generate-protocol", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ notes, customPrompt: protocolPrompt }),
+        body: formData,
       });
       const text = await res.text();
       let data;
@@ -151,11 +157,11 @@ export default function ProtocolPage() {
             placeholder="Paste notes or dictated description of the trial..."
           />
           <FileUploader
-            label="Supporting Files (optional)"
-            accept=".pdf,.doc,.docx,.txt"
+            label="Additional Files"
+            accept=".pdf,.doc,.docx,.txt,.xlsx,.xls,.csv"
             multiple
-            files={files}
-            onFilesChange={setFiles}
+            files={additionalFiles}
+            onFilesChange={setAdditionalFiles}
           />
           <InlinePromptEditor
             label="Protocol"
@@ -206,7 +212,7 @@ export default function ProtocolPage() {
         <button
           type="button"
           onClick={handleGenerate}
-          disabled={loading || !notes.trim()}
+          disabled={loading || (!notes.trim() && additionalFiles.length === 0)}
           className="rounded-lg bg-emerald-600 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700 disabled:opacity-50"
         >
           {loading ? "Generating..." : "Generate Protocol"}
