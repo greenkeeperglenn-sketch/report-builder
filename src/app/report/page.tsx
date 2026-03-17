@@ -50,8 +50,14 @@ export default function ReportPage() {
         method: "POST",
         body: formData,
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      const text = await res.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error(text.slice(0, 200) || "Server returned an invalid response");
+      }
+      if (!res.ok) throw new Error(data.error || "Generation failed");
       setSections(data.sections);
       if (data.tables?.length) setTables(data.tables);
     } catch (err) {
@@ -106,8 +112,14 @@ export default function ReportPage() {
           refinePrompt,
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      const text = await res.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error(text.slice(0, 200) || "Server returned an invalid response");
+      }
+      if (!res.ok) throw new Error(data.error || "Regeneration failed");
       setSections((prev) =>
         prev.map((s) => (s.id === id ? { ...s, content: data.content } : s))
       );

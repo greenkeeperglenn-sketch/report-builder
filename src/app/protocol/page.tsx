@@ -38,8 +38,14 @@ export default function ProtocolPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ notes, customPrompt: protocolPrompt }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      const text = await res.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error(text.slice(0, 200) || "Server returned an invalid response");
+      }
+      if (!res.ok) throw new Error(data.error || "Generation failed");
       setSections(data.sections);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Generation failed");
@@ -73,8 +79,14 @@ export default function ProtocolPage() {
           refinePrompt,
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      const text = await res.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error(text.slice(0, 200) || "Server returned an invalid response");
+      }
+      if (!res.ok) throw new Error(data.error || "Regeneration failed");
       setSections((prev) =>
         prev.map((s) => (s.id === id ? { ...s, content: data.content } : s))
       );

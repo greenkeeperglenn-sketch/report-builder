@@ -9,7 +9,7 @@
       "maxDuration": 60
     },
     "src/app/api/regenerate-section/route.ts": {
-      "maxDuration": 30
+      "maxDuration": 60
     },
     "src/app/api/export-document/route.ts": {
       "maxDuration": 30

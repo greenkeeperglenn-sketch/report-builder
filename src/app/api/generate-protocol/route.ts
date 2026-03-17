@@ -24,13 +24,23 @@ export async function POST(req: NextRequest) {
 
     const jsonMatch = raw.match(/\[[\s\S]*\]/);
     if (!jsonMatch) {
+      console.error("AI response did not contain JSON array:", raw.slice(0, 500));
       return NextResponse.json(
-        { error: "Failed to parse AI response" },
+        { error: "Failed to parse AI response. The AI did not return valid JSON." },
         { status: 500 }
       );
     }
 
-    const parsed = JSON.parse(jsonMatch[0]) as { title: string; content: string }[];
+    let parsed: { title: string; content: string }[];
+    try {
+      parsed = JSON.parse(jsonMatch[0]);
+    } catch (parseErr) {
+      console.error("JSON parse error:", parseErr, "\nRaw excerpt:", jsonMatch[0].slice(0, 500));
+      return NextResponse.json(
+        { error: "AI response contained malformed JSON. Please try again." },
+        { status: 500 }
+      );
+    }
     const sections: Section[] = parsed.map((s) => ({
       id: uuidv4(),
       title: s.title,
