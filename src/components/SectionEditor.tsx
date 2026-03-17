@@ -46,7 +46,7 @@ function renderContentWithTables(content: string) {
         <div key={key++} className="my-2 overflow-x-auto rounded border border-slate-200">
           <table className="w-full text-xs">
             <thead>
-              <tr className="bg-blue-50">
+              <tr className="bg-gray-200">
                 {headers.map((h, hi) => (
                   <th key={hi} className="border-b border-slate-200 px-3 py-1.5 text-left font-semibold text-slate-700">
                     {h}

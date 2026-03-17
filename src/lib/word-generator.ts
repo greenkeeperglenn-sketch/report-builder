@@ -74,7 +74,7 @@ const TABLE_PR = `<w:tblPr>
 </w:tblPr>`;
 
 function buildWordTable(headers: string[], rows: string[][]): string {
-  const headerRow = buildTableRow(headers, true, "D9E2F3");
+  const headerRow = buildTableRow(headers, true, "D9D9D9");
   const dataRows = rows
     .map((row, i) => buildTableRow(row, false, i % 2 === 1 ? "F2F2F2" : undefined))
     .join("");
