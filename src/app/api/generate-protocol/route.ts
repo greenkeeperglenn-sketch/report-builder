@@ -10,10 +10,14 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
     const notes = (formData.get("notes") as string) || "";
     const customPrompt = formData.get("customPrompt") as string | null;
+    const additionalText = (formData.get("additionalText") as string) || "";
 
-    // Extract text from additional files
+    // Only .doc/.docx/.pdf files that need server-side parsing come through here
     const additionalFiles = formData.getAll("additionalFiles") as File[];
-    const filesText = await extractTextFromFiles(additionalFiles);
+    const serverParsedText = await extractTextFromFiles(additionalFiles);
+
+    // Combine client-extracted text + server-parsed text
+    const filesText = [additionalText, serverParsedText].filter(Boolean).join("\n\n");
 
     if (!notes.trim() && !filesText.trim()) {
       return NextResponse.json(

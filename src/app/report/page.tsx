@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Section, TableData, ImageUpload, ChartExport } from "@/lib/types";
+import { extractFilesClientSide } from "@/lib/client-file-extractor";
 import { useLocalPrompts } from "@/hooks/useLocalPrompts";
 import NotesInput from "@/components/NotesInput";
 import FileUploader from "@/components/FileUploader";
@@ -40,13 +41,17 @@ export default function ReportPage() {
     setLoading(true);
     setError(null);
     try {
+      // Extract text from additional files client-side to avoid payload size limits
+      const extracted = await extractFilesClientSide(additionalFiles);
+
       const formData = new FormData();
       if (protocolFiles[0]) formData.append("protocol", protocolFiles[0]);
       if (excelFiles[0]) formData.append("excel", excelFiles[0]);
       formData.append("notes", notes);
       formData.append("imageCount", String(images.length));
       if (reportPrompt) formData.append("customPrompt", reportPrompt);
-      for (const file of additionalFiles) {
+      if (extracted.text) formData.append("additionalText", extracted.text);
+      for (const file of extracted.serverFiles) {
         formData.append("additionalFiles", file);
       }
 

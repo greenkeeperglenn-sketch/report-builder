@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Section } from "@/lib/types";
+import { extractFilesClientSide } from "@/lib/client-file-extractor";
 import { useLocalPrompts } from "@/hooks/useLocalPrompts";
 import NotesInput from "@/components/NotesInput";
 import FileUploader from "@/components/FileUploader";
@@ -33,10 +34,14 @@ export default function ProtocolPage() {
     setLoading(true);
     setError(null);
     try {
+      // Extract text from files client-side to avoid payload size limits
+      const extracted = await extractFilesClientSide(additionalFiles);
+
       const formData = new FormData();
       formData.append("notes", notes);
       if (protocolPrompt) formData.append("customPrompt", protocolPrompt);
-      for (const file of additionalFiles) {
+      if (extracted.text) formData.append("additionalText", extracted.text);
+      for (const file of extracted.serverFiles) {
         formData.append("additionalFiles", file);
       }
 

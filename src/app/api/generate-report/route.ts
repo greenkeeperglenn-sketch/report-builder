@@ -15,6 +15,7 @@ export async function POST(req: NextRequest) {
     const notes = formData.get("notes") as string;
     const customPrompt = formData.get("customPrompt") as string | null;
     const imageCount = parseInt(formData.get("imageCount") as string) || 0;
+    const additionalText = (formData.get("additionalText") as string) || "";
 
     let protocolText = "";
     if (protocolFile) {
@@ -31,9 +32,10 @@ export async function POST(req: NextRequest) {
       tables = parseExcelBuffer(buffer);
     }
 
-    // Extract text from additional files
+    // Only .doc/.docx/.pdf files that need server-side parsing come through here
     const additionalFiles = formData.getAll("additionalFiles") as File[];
-    const filesText = await extractTextFromFiles(additionalFiles);
+    const serverParsedText = await extractTextFromFiles(additionalFiles);
+    const filesText = [additionalText, serverParsedText].filter(Boolean).join("\n\n");
 
     const tablesText = tables
       .map(
